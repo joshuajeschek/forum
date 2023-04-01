@@ -33,6 +33,9 @@ jobs:
       - name: Set PR_UPDATE, PR_CLOSE and MAIN_PUSH ⚙️
         id: set_type
         run: |
+          echo $PR_UPDATE
+          echo $PR_CLOSE
+          echo $MAIN_PUSH
           echo "pr_update=$PR_UPDATE" >> $GITHUB_OUTPUT
           echo "pr_close=$PR_CLOSE" >> $GITHUB_OUTPUT
           echo "main_push=$MAIN_PUSH" >> $GITHUB_OUTPUT
