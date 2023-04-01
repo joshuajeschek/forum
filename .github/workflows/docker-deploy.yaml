@@ -70,9 +70,6 @@ jobs:
     if: needs.prepare.outputs.type == 'pr_update' || needs.prepare.outputs.type == 'main_push'
     environment: dockerhub
 
-    env:
-      IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
-
     steps:
       - name: Checkout repository 🛒
         uses: actions/checkout@v3
@@ -92,7 +89,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ DOCKERHUB_USERNAME }}/forum:$IMAGE_TAG
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/forum:${{ needs.prepare.outputs.image_tag }}
 
   deploy:
     runs-on: ubuntu-latest
