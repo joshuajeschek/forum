@@ -13,6 +13,12 @@ concurrency:
   group: deploy-${{ github.head_ref }}
   cancel-in-progress: true
 
+env:
+  VPS_USER: top22
+  DATABASE_USER: deploy
+  DATABASE: top22
+  DATABASE_HOST: postgres:5432
+
 jobs:
   prepare:
     runs-on: ubuntu-latest
@@ -98,7 +104,7 @@ jobs:
 
     needs:
       - prepare
-      # - build_and_push
+      - build_and_push
 
     env:
       TYPE: ${{ needs.prepare.outputs.type }}
@@ -124,11 +130,11 @@ jobs:
             username="${{ github.event.pull_request.user.login }}"
             DATABASE_SCHEMA="$(echo "$username" | tr -dc '[:alpha:]' | tr '[:upper:]' '[:lower:]')"
           fi
-          echo "DATABASE_URL=postgresql://deploy:$DATABASE_PASSWORD@postgres:5432/top22?schema=$DATABASE_SCHEMA" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgresql://$DATABASE_USER:$DATABASE_PASSWORD@$DATABASE_HOST/$DATABASE?schema=$DATABASE_SCHEMA" >> $GITHUB_ENV
 
       - name: Deploy to VPS 🚀
         run: |
-          ssh -o StrictHostKeyChecking=no -p 22 top22@$VPS_HOST "\
+          ssh -o StrictHostKeyChecking=no -p 22 $VPS_USER@$VPS_HOST "\
             sudo docker stop $CONTAINER_NAME || true && \
             sudo docker rm $CONTAINER_NAME || true && \
             sudo docker rmi $DOCKERHUB_USERNAME/forum:$IMAGE_TAG || true && \
@@ -159,7 +165,7 @@ jobs:
     steps:
       - name: Update Database 📝
         run: |
-          ssh -o StrictHostKeyChecking=no -p 22 top22@$VPS_HOST "\
+          ssh -o StrictHostKeyChecking=no -p 22 $VPS_USER@$VPS_HOST "\
             (sudo docker exec $CONTAINER_NAME npx prisma db push --force-reset && \
             sudo docker exec $CONTAINER_NAME yarn testdata) || true"
 
@@ -181,7 +187,11 @@ jobs:
         with:
           head-branch-regex: ${{ github.head_ref }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-          body-template: "[![.github/workflows/docker-deploy.yaml](https://github.com/top-22/forum/actions/workflows/docker-deploy.yaml/badge.svg)](https://${{ needs.prepare.outputs.host }})"
+          body-template: |
+            <a href="${{ needs.prepare.outputs.host }}">
+              <img alt="May be deployed to ${{ needs.prepare.outputs.host }}"
+               src="https://github.com/top-22/forum/actions/workflows/docker-deploy.yaml/badge.svg"/>
+            </a>
           body-update-action: prefix
 
   remove_container:
@@ -204,7 +214,7 @@ jobs:
 
       - name: Remove container from VPS 🗑️
         run: |
-          ssh -o StrictHostKeyChecking=no -p 22 top22@$VPS_HOST "\
+          ssh -o StrictHostKeyChecking=no -p 22 $VPS_USER@$VPS_HOST "\
             sudo docker stop $CONTAINER_NAME || true && \
             sudo docker rm $CONTAINER_NAME || true && \
             sudo docker rmi $DOCKERHUB_USERNAME/forum:$IMAGE_TAG || true"
