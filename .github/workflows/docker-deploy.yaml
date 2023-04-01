@@ -19,7 +19,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -29,7 +28,7 @@ jobs:
       image_tag: ${{ steps.set_image_tag.outputs.image_tag }}
       host: ${{ steps.set_host.outputs.host }}
 
-  steps:
+    steps:
       - name: Set PR_UPDATE, PR_CLOSE and MAIN_PUSH ⚙️
         id: set_type
         run: |
@@ -55,7 +54,6 @@ jobs:
             SANITIZED_TAG=$(echo "${{ github.head_ref }}" | sed 's/ä/ae/g; s/ü/ue/g; s/ö/oe/g')
             echo "HOST=top22-$SANITIZED_TAG.jeschek.eu" >> $GITHUB_OUTPUT
           fi
-
 
   build_and_push:
     runs-on: ubuntu-latest
