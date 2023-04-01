@@ -23,7 +23,7 @@ jobs:
       host: ${{ steps.set_host.outputs.host }}
 
     steps:
-      - name: Set PR_UPDATE, PR_CLOSE and MAIN_PUSH ⚙️
+      - name: Set Type ⚙️
         id: set_type
         run: |
           if [ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]; then
@@ -72,8 +72,6 @@ jobs:
 
     env:
       IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
     steps:
       - name: Checkout repository 🛒
@@ -82,8 +80,8 @@ jobs:
       - name: Log in to Docker Hub 🔐
         uses: docker/login-action@v2
         with:
-          username: $DOCKERHUB_USERNAME
-          password: $DOCKERHUB_TOKEN
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx ⚙️
         uses: docker/setup-buildx-action@v2
@@ -94,7 +92,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: $DOCKERHUB_USERNAME/forum:$IMAGE_TAG
+          tags: ${{ DOCKERHUB_USERNAME }}/forum:$IMAGE_TAG
 
   deploy:
     runs-on: ubuntu-latest
@@ -106,26 +104,25 @@ jobs:
       # - build_and_push
 
     env:
+      TYPE: ${{ needs.prepare.outputs.type }}
       IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
       HOST: ${{ needs.prepare.outputs.host }}
       CONTAINER_NAME: ${{ needs.prepare.outputs.container_name }}
-      MAIN_PUSH: ${{ needs.prepare.outputs.main_push }}
       DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       VPS_HOST: ${{ secrets.VPS_HOST }}
 
     steps:
       - name: Setup SSH key 🔑
         uses: webfactory/ssh-agent@v0.8.0
         with:
-          ssh-private-key: $SSH_PRIVATE_KEY
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Set DATABASE_URL ⚙️
         run: |
-          if $MAIN_PUSH; then
-            echo "DATA_SCHEMA=main" >> $GITHUB_ENV
+          if [ $TYPE == "main_push" ]; then
+            DATABASE_SCHEMA="main"
           else
             username="${{ github.event.pull_request.user.login }}"
             DATABASE_SCHEMA="$(echo "$username" | tr -dc '[:alpha:]' | tr '[:upper:]' '[:lower:]')"
@@ -165,7 +162,7 @@ jobs:
     steps:
       - name: Update Database 📝
         run: |
-          ssh -o StrictHostKeyChecking=no -p 22 top22@${{ secrets.VPS_HOST }} "\
+          ssh -o StrictHostKeyChecking=no -p 22 top22@$VPS_HOST "\
             (sudo docker exec $CONTAINER_NAME npx prisma db push --force-reset && \
             sudo docker exec $CONTAINER_NAME yarn testdata) || true"
 
@@ -179,19 +176,15 @@ jobs:
     needs:
       - prepare
       - deploy
-    env:
-      HOST: ${{ needs.prepare.outputs.host }}
-      HEAD_BRANCH_REGEX: ${{ github.head_ref }}
-      REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Update Pull Request Description 📝
         uses: tzkhan/pr-update-action@v2
         continue-on-error: true
         with:
-          head-branch-regex: $HEAD_BRANCH_REGEX
-          repo-token: $REPO_TOKEN
-          body-template: "[![.github/workflows/docker-deploy.yaml](https://github.com/top-22/forum/actions/workflows/docker-deploy.yaml/badge.svg)](https://$HOST)"
+          head-branch-regex: ${{ github.head_ref }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          body-template: "[![.github/workflows/docker-deploy.yaml](https://github.com/top-22/forum/actions/workflows/docker-deploy.yaml/badge.svg)](https://${{ needs.prepare.outputs.host }})"
           body-update-action: prefix
 
   remove_container:
@@ -201,7 +194,6 @@ jobs:
 
     env:
       IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       CONTAINER_NAME: ${{ needs.prepare.outputs.container_name }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -211,7 +203,7 @@ jobs:
       - name: Setup SSH key 🔑
         uses: webfactory/ssh-agent@v0.8.0
         with:
-          ssh-private-key: $SSH_PRIVATE_KEY
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY } }}
 
       - name: Remove container from VPS 🗑️
         run: |
