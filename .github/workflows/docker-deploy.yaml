@@ -178,7 +178,6 @@ jobs:
 
     needs:
       - prepare
-      - deploy
 
     steps:
       - name: Update Pull Request Description 📝
