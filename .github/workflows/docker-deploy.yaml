@@ -29,10 +29,10 @@ jobs:
         id: set_type
         run: |
           # echo "pr_update=$('${{ github.event_name }}' == 'pull_request' && '${{github.event.action}}' != 'closed')" >> $GITHUB_OUTPUT
-          ['${{ github.event_name }}' == 'pull_request'] && ['${{github.event.action}}' != 'closed'] && echo "pr_update=true" >> $GITHUB_OUTPUT
-          ['${{ github.event_name }}' == 'pull_request'] && ['${{github.event.action}}' == 'closed'] && echo "pr_close=true" >> $GITHUB_OUTPUT
-          ['${{ github.event_name }}' == 'push'] && ['${{ github.ref }}' == 'refs/heads/main'] && echo "main_push=true" >> $GITHUB_OUTPUT
-          ['${{ github.event_name }}' == 'push'] && ['${{ github.ref }}' == 'refs/heads/main'] && echo "MAIN_PUSH=true" >> $GITHUB_ENV
+          ["${{ github.event_name }}" == "pull_request"] && ["${{github.event.action}}" != "closed"] && echo "pr_update=true" >> $GITHUB_OUTPUT
+          ["${{ github.event_name }}" == "pull_request"] && ["${{github.event.action}}" == "closed"] && echo "pr_close=true" >> $GITHUB_OUTPUT
+          ["${{ github.event_name }}" == "push"] && ["${{ github.ref }}" == "refs/heads/main"] && echo "main_push=true" >> $GITHUB_OUTPUT
+          ["${{ github.event_name }}" == "push"] && ["${{ github.ref }}" == "refs/heads/main"] && echo "MAIN_PUSH=true" >> $GITHUB_ENV
           # echo "pr_close=$('${{ github.event_name }}' == 'pull_request' && '${{ github.event.action }}' == 'closed')" >> $GITHUB_OUTPUT
           # MAIN_PUSH=$('${{ github.event_name }}' == 'push' && '${{ github.ref }}' == 'refs/heads/main')
           # echo "main_push=$MAIN_PUSH" >> $GITHUB_OUTPUT
