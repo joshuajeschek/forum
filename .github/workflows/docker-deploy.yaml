@@ -187,8 +187,8 @@ jobs:
           head-branch-regex: ${{ github.head_ref }}
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           body-template: |
-            <a href="${{ needs.prepare.outputs.host }}">
-              <img alt="May be deployed to ${{ needs.prepare.outputs.host }}"
+            <a href="https://${{ needs.prepare.outputs.host }}">
+              <img alt="May be deployed to https://${{ needs.prepare.outputs.host }}"
                src="https://github.com/top-22/forum/actions/workflows/docker-deploy.yaml/badge.svg"/>
             </a>
           body-update-action: prefix
