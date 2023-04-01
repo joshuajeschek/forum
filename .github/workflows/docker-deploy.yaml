@@ -9,6 +9,11 @@ on:
     branches:
       - main
 
+env:
+  PR_UPDATE: (github.event_name == 'pull_request' && github.event.action != 'closed')
+  PR_CLOSE: (github.event_name == 'pull_request' && github.event.action == 'closed')
+  MAIN_PUSH: (github.event_name == 'push' && github.ref == 'refs/heads/main')
+
 concurrency:
   group: deploy-${{ github.head_ref }}
   cancel-in-progress: true
@@ -16,7 +21,7 @@ concurrency:
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
-    if: (github.event_name == 'pull_request' && github.event.action != 'closed') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: PR_UPDATE || MAIN_PUSH
     environment: dockerhub
 
     steps:
@@ -35,7 +40,7 @@ jobs:
       - name: Set IMAGE_TAG ⚙️
         id: set_image_tag
         run: |
-          if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          if $MAIN_PUSH; then
             echo "IMAGE_TAG=main" >> $GITHUB_ENV
           else
             echo "IMAGE_TAG=pr-${{ github.head_ref }}" >> $GITHUB_ENV
@@ -51,7 +56,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    if: (github.event_name == 'pull_request' && github.event.action != 'closed') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: PR_UPDATE || MAIN_PUSH
     # needs: build_and_push
     environment: testing
     outputs:
@@ -66,7 +71,7 @@ jobs:
       - name: Set IMAGE TAG, PORT, Database Schema and Hostname ⚙️
         id: set_vars
         run: |
-          if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          if $MAIN_PUSH; then
             echo "IMAGE_TAG=main" >> $GITHUB_ENV
             echo "PORT=3000" >> $GITHUB_ENV
             echo "DATA_SCHEMA=main" >> $GITHUB_ENV
@@ -103,16 +108,15 @@ jobs:
             sudo docker network connect db_default $CONTAINER_NAME"
 
       - name: Update Database 📝
+        if: $MAIN_PUSH
         run: |
-          if [ "${{ env.IMAGE_TAG }}" == "main" ]; then
-            ssh -o StrictHostKeyChecking=no -p 22 top22@${{ secrets.VPS_HOST }} "\
-              (sudo docker exec forum-${{ env.IMAGE_TAG }} npx prisma db push --force-reset && \
-              sudo docker exec forum-${{ env.IMAGE_TAG }} yarn testdata) || true"
-          fi
+          ssh -o StrictHostKeyChecking=no -p 22 top22@${{ secrets.VPS_HOST }} "\
+            (sudo docker exec forum-${{ env.IMAGE_TAG }} npx prisma db push --force-reset && \
+            sudo docker exec forum-${{ env.IMAGE_TAG }} yarn testdata) || true"
 
   update_pr:
     runs-on: ubuntu-latest
-    if: (github.event_name == 'pull_request' && github.event.action != 'closed')
+    if: PR_UPDATE
     permissions:
       pull-requests: write
     needs: deploy
@@ -129,7 +133,7 @@ jobs:
 
   remove_container:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    if: PR_CLOSE
 
     steps:
       - name: Setup SSH key 🔑
