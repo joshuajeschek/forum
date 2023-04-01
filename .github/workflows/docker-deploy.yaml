@@ -27,6 +27,7 @@ jobs:
       main_push: ${{ steps.set_type.outputs.main_push }}
       image_tag: ${{ steps.set_image_tag.outputs.image_tag }}
       host: ${{ steps.set_host.outputs.host }}
+      container_name: ${{ steps.set_container_name.outputs.container_name }}
 
     steps:
       - name: Set PR_UPDATE, PR_CLOSE and MAIN_PUSH ⚙️
@@ -36,13 +37,22 @@ jobs:
           echo "pr_close=$PR_CLOSE" >> $GITHUB_OUTPUT
           echo "main_push=$MAIN_PUSH" >> $GITHUB_OUTPUT
 
-      - name: Set IMAGE_TAG ⚙️
+      - name: Set IMAGE_TAG and CONTAINER_NAME ⚙️
         id: set_image_tag
         run: |
           if $MAIN_PUSH; then
             echo "IMAGE_TAG=main" >> $GITHUB_OUTPUT
           else
             echo "IMAGE_TAG=pr-${{ github.head_ref }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set CONTAINER_NAME ⚙️
+        id: set_container_name
+        run: |
+          if $MAIN_PUSH; then
+            echo "CONTAINER_NAME=forum" >> $GITHUB_OUTPUT
+          else
+            echo "CONTAINER_NAME=forum-pr-${{ github.head_ref }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Set Host ⚙️
@@ -94,6 +104,7 @@ jobs:
     env:
       IMAGE_TAG: ${{ needs.prepare.outputs.image_tag }}
       HOST: ${{ needs.prepare.outputs.host }}
+      CONTAINER_NAME: ${{ needs.prepare.outputs.container_name }}
 
     steps:
       - name: Setup SSH key 🔑
@@ -101,7 +112,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Set CONTAINER_NAME and DATABASE_URL ⚙️
+      - name: Set DATABASE_URL ⚙️
         run: |
           if $MAIN_PUSH; then
             echo "DATA_SCHEMA=main" >> $GITHUB_ENV
@@ -109,7 +120,6 @@ jobs:
             username="${{ github.event.pull_request.user.login }}"
             DATABASE_SCHEMA="$(echo "$username" | tr -dc '[:alpha:]' | tr '[:upper:]' '[:lower:]')"
           fi
-          echo "CONTAINER_NAME=forum-$IMAGE_TAG" >> $GITHUB_ENV
           echo "DATABASE_URL=postgresql://deploy:${{ secrets.DATABASE_PASSWORD }}@postgres:5432/top22?schema=$DATABASE_SCHEMA" >> $GITHUB_ENV
 
       - name: Deploy to VPS 🚀
@@ -130,12 +140,21 @@ jobs:
               ${{ secrets.DOCKERHUB_USERNAME }}/forum:$IMAGE_TAG && \
             sudo docker network connect db_default $CONTAINER_NAME"
 
+  udpate_db:
+    runs-on: ubuntu-latest
+    needs:
+      - prepare
+      - deploy
+    if: needs.prepare.outputs.main_push
+    env:
+      CONTAINER_NAME: ${{ needs.prepare.outputs.container_name }}
+
+    steps:
       - name: Update Database 📝
-        if: $MAIN_PUSH
         run: |
           ssh -o StrictHostKeyChecking=no -p 22 top22@${{ secrets.VPS_HOST }} "\
-            (sudo docker exec forum-${{ env.IMAGE_TAG }} npx prisma db push --force-reset && \
-            sudo docker exec forum-${{ env.IMAGE_TAG }} yarn testdata) || true"
+            (sudo docker exec $CONTAINER_NAME npx prisma db push --force-reset && \
+            sudo docker exec $CONTAINER_NAME yarn testdata) || true"
 
   update_pr:
     runs-on: ubuntu-latest
