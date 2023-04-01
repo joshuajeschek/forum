@@ -32,7 +32,7 @@ jobs:
       - name: Set Type ⚙️
         id: set_type
         run: |
-          if [ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]; then
+          if [ "${{ github.event_name }}" == "push" ] && [ "${{ github.ref }}" == "refs/heads/main" ]; then
             echo "type=main_push" >> $GITHUB_OUTPUT
           elif [ "${{ github.event_name }}" == "pull_request" ] && [ "${{github.event.action}}" != "closed" ]; then
             echo "type=pr_update" >> $GITHUB_OUTPUT
