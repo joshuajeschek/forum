@@ -30,12 +30,14 @@ jobs:
         run: |
           echo "pr_update=$(${{ github.event_name }} == 'pull_request' && ${{github.event.action}} != 'closed')" >> $GITHUB_OUTPUT
           echo "pr_close=$(${{ github.event_name }} == 'pull_request' && ${{ github.event.action }} == 'closed')" >> $GITHUB_OUTPUT
-          echo "main_push=$(${{ github.event_name }} == 'push' && ${{ github.ref }} == 'refs/heads/main')" >> $GITHUB_OUTPUT
+          MAIN_PUSH=$(${{ github.event_name }} == 'push' && ${{ github.ref }} == 'refs/heads/main')
+          echo "main_push=$MAIN_PUSH" >> $GITHUB_OUTPUT
+          echo "MAIN_PUSH=$MAIN_PUSH" >> $GITHUB_ENV
 
       - name: Set IMAGE_TAG and CONTAINER_NAME ⚙️
         id: set_image_tag
         run: |
-          if $MAIN_PUSH; then
+          if ${{ env.MAIN_PUSH }}; then
             echo "IMAGE_TAG=main" >> $GITHUB_OUTPUT
           else
             echo "IMAGE_TAG=pr-${{ github.head_ref }}" >> $GITHUB_OUTPUT
@@ -44,7 +46,7 @@ jobs:
       - name: Set CONTAINER_NAME ⚙️
         id: set_container_name
         run: |
-          if $MAIN_PUSH; then
+          if ${{ env.MAIN_PUSH }}; then
             echo "CONTAINER_NAME=forum" >> $GITHUB_OUTPUT
           else
             echo "CONTAINER_NAME=forum-pr-${{ github.head_ref }}" >> $GITHUB_OUTPUT
@@ -53,7 +55,7 @@ jobs:
       - name: Set Host ⚙️
         id: set_host
         run: |
-          if $MAIN_PUSH; then
+          if ${{ env.MAIN_PUSH }}; then
             echo "HOST=forum.jeschek.eu" >> $GITHUB_OUTPUT
           else
             SANITIZED_TAG=$(echo "${{ github.head_ref }}" | sed 's/ä/ae/g; s/ü/ue/g; s/ö/oe/g')
