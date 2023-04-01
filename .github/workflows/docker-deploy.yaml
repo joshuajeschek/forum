@@ -189,7 +189,7 @@ jobs:
           body-template: |
             <a href="https://${{ needs.prepare.outputs.host }}">
               <img alt="May be deployed to https://${{ needs.prepare.outputs.host }}"
-               src="https://github.com/top-22/forum/actions/workflows/docker-deploy.yaml/badge.svg"/>
+               src="https://github.com/${{ github.repository }}/actions/workflows/docker-deploy.yaml/badge.svg?branch=${{ github.head_ref }}"/>
             </a>
           body-update-action: prefix
 
